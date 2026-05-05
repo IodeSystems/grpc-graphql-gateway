@@ -22,3 +22,4 @@ example/**/schema.graphql
 example/**/github.com
 example/**/app
 playground
+.idea/
