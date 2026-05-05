@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package nestedresolvertest;
+
+import "graphql.proto";
+
+option go_package = "./;nestedresolvertest";
+
+// Mirrors the example from upstream issue #83. The point of the
+// fixture: a non-resolver query (GetPost) returns a message
+// (GetPostResponse) whose field is annotated with a resolver
+// (graphql.field.resolver = "getComments"); the resolver target
+// (GetComments) takes its own arguments. The generated GraphQL
+// schema must expose those arguments on the nested field.
+service Test {
+  rpc GetPost (GetPostRequest) returns (GetPostResponse) {
+    option (graphql.schema) = {
+      type: QUERY
+      name: "getPost"
+    };
+  }
+
+  rpc GetComments(GetCommentsRequest) returns (GetCommentsResponse) {
+    option (graphql.schema) = {
+      type: RESOLVER
+      name: "getComments"
+    };
+  }
+}
+
+message GetPostRequest {
+  string start = 1;
+}
+
+message GetPostResponse {
+  int64 id = 1;
+  GetCommentsResponse comments = 2 [(graphql.field).resolver = "getComments"];
+}
+
+message GetCommentsRequest {
+  int64 after = 1;
+}
+
+message GetCommentsResponse {
+  int64 id = 1;
+  string content = 2;
+}
