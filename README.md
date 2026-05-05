@@ -294,16 +294,30 @@ To learn more, please see the following resources:
 
 This plugin generates graphql execution code using [graphql-go/graphql](https://github.com/graphql-go/graphql), see that repository in detail.
 
-## Limitations
+## Caveats
 
-This plugin just aims to generate a simple gateway of gRPC.
+### `oneof` mapping
 
-Some of things could be solved and could not be solved.
-The most of limitations come from the IDL's power of expression -- some kind of GraphQL schema feature cannot implement by Protocol Buffers X(
+Protobuf `oneof` is supported but with caveats — GraphQL has no native
+"exactly one of" construct for scalar variants, so:
 
-Currently we don't support some Protobuf types:
+- Each variant becomes an independent nullable field on the GraphQL
+  type and input. Clients see all variants and must look for the
+  non-null one to know which was set.
+- The schema cannot enforce mutual exclusion. If a client supplies
+  more than one variant in an input, the **last variant in proto
+  declaration order wins**; earlier ones are dropped before the gRPC
+  call.
+- Variant types beyond scalars (nested messages, enums, bytes,
+  repeated) are not assembled on the input side — the wrapper stays
+  unset and the gRPC server sees the oneof as cleared. Output
+  resolvers always work for any variant type.
 
-- Builtin `oneof` type
+### Other unsupported types
+
+This plugin aims to generate a simple gateway of gRPC; some Protobuf
+features still don't have a natural GraphQL projection and are not
+yet supported.
 
 ## Contribute
 
