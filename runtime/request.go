@@ -2,12 +2,15 @@ package runtime
 
 import (
 	"errors"
+	"fmt"
 
 	"encoding/json"
 	"io"
 	"net/http"
 
 	"github.com/iancoleman/strcase"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 type GraphqlRequest struct {
@@ -43,12 +46,29 @@ func parseRequest(r *http.Request) (*GraphqlRequest, error) {
 	return &req, nil
 }
 
-// MarshalRequest marshals graphql request arguments to gRPC request message
+// MarshalRequest marshals graphql request arguments into a gRPC request
+// message.
+//
+// When v implements proto.Message (the common case for generated code),
+// the canonical proto3 JSON path via protojson is used. That handles
+// oneof wrapper construction, base64-encoded bytes, enums by name or
+// number, well-known types, and accepts both proto and lowerCamel field
+// names — so isCamel is a no-op on this path.
+//
+// For non-proto targets the legacy std-json round-trip is preserved so
+// callers outside the generator keep working.
 func MarshalRequest(args, v interface{}, isCamel bool) error {
 	if args == nil {
 		return errors.New("resolved params should be non-nil")
 	}
-	m, ok := args.(map[string]interface{}) // graphql.ResolveParams or nested object
+	if msg, ok := v.(proto.Message); ok {
+		buf, err := json.Marshal(args)
+		if err != nil {
+			return fmt.Errorf("encoding args: %w", err)
+		}
+		return protojson.UnmarshalOptions{DiscardUnknown: true}.Unmarshal(buf, msg)
+	}
+	m, ok := args.(map[string]interface{})
 	if !ok {
 		return errors.New("failed to type conversion of map[string]interface{}")
 	}

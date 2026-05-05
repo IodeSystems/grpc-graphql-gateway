@@ -128,12 +128,6 @@ func Gql__type_{{ .TypeName }}() *graphql.Object {
 							} else if err = runtime.MarshalRequest(p.Args, &req, {{ if $query.IsCamel }}true{{ else }}false{{ end }}); err != nil {
 								return nil, errors.Wrap(err, "Failed to marshal resolver request for {{ $query.QueryName }}")
 							}
-							{{- range $query.Input.Oneofs }}
-							// oneof "{{ .Name }}" — last variant supplied wins (caveat: GraphQL can't enforce mutual exclusion)
-							{{- range .Fields }}
-{{ .OneofVariantAssign "p.Args" "req" }}
-							{{- end }}
-							{{- end }}
 							{{ $s := index $.Services 0 }}
 							x := new_graphql_resolver_{{ $s.Name }}(nil)
 							conn, closer, err := x.CreateConnection(p.Context)
@@ -296,12 +290,6 @@ func (x *graphql__resolver_{{ $service.Name }}) GetQueries(conn *grpc.ClientConn
 				if err := runtime.MarshalRequest(p.Args, &req, {{ if .IsCamel }}true{{ else }}false{{ end }}); err != nil {
 					return nil, errors.Wrap(err, "Failed to marshal request for {{ .QueryName }}")
 				}
-				{{- range .Input.Oneofs }}
-				// oneof "{{ .Name }}" — last variant supplied wins (caveat: GraphQL can't enforce mutual exclusion)
-				{{- range .Fields }}
-{{ .OneofVariantAssign "p.Args" "req" }}
-				{{- end }}
-				{{- end }}
 				client := New{{ .Method.Service.Name }}Client(conn)
 				resp, err := client.{{ .Method.Name }}(p.Context, &req)
 				if err != nil {
@@ -330,7 +318,7 @@ func (x *graphql__resolver_{{ $service.Name }}) GetQueries(conn *grpc.ClientConn
 // GetMutations returns acceptable graphql.Fields for Mutation.
 func (x *graphql__resolver_{{ $service.Name }}) GetMutations(conn *grpc.ClientConn) graphql.Fields {
 	return graphql.Fields{
-{{- range $mut := .Mutations }}
+{{- range .Mutations }}
 		"{{ .MutationName }}": &graphql.Field{
 			Type: {{ .MutationType }},
 			{{- if .Comment }}
@@ -364,17 +352,6 @@ func (x *graphql__resolver_{{ $service.Name }}) GetMutations(conn *grpc.ClientCo
 				{{- end }}
 					return nil, errors.Wrap(err, "Failed to marshal request for {{ .MutationName }}")
 				}
-				{{- if .Input.Oneofs }}
-				{{- if .InputName }}
-				oneofArgs, _ := p.Args["{{ .InputName }}"].(map[string]interface{})
-				{{- end }}
-				{{- range .Input.Oneofs }}
-				// oneof "{{ .Name }}" — last variant supplied wins (caveat: GraphQL can't enforce mutual exclusion)
-				{{- range .Fields }}
-{{ if $mut.InputName }}{{ .OneofVariantAssign "oneofArgs" "req" }}{{ else }}{{ .OneofVariantAssign "p.Args" "req" }}{{ end }}
-				{{- end }}
-				{{- end }}
-				{{- end }}
 				client := New{{ $service.Name }}Client(conn)
 				resp, err := client.{{ .Method.Name }}(p.Context, &req)
 				if err != nil {
@@ -423,12 +400,6 @@ func (x *graphql__resolver_{{ $service.Name }}) GetSubscriptions(conn *grpc.Clie
                 if err := runtime.MarshalRequest(p.Args, &req, {{ if .IsCamel }}true{{ else }}false{{ end }}); err != nil {
                     return nil, errors.Wrap(err, "Failed to marshal subscription request for {{ .SubscriptionName }}")
                 }
-                {{- range .Input.Oneofs }}
-                // oneof "{{ .Name }}" — last variant supplied wins (caveat: GraphQL can't enforce mutual exclusion)
-                {{- range .Fields }}
-{{ .OneofVariantAssign "p.Args" "req" }}
-                {{- end }}
-                {{- end }}
                 client := New{{ $service.Name }}Client(conn)
                 stream, err := client.{{ .Method.Name }}(p.Context, &req)
                 if err != nil {

@@ -65,17 +65,36 @@ func TestOneofGeneration(t *testing.T) {
 	}
 
 	got := string(src)
-	expectations := map[string]string{
-		"output: name variant resolver":   `src.GetKey().(*LookupRequest_Name)`,
-		"output: id variant resolver":     `src.GetKey().(*LookupRequest_Id)`,
-		"output: text variant resolver":   `src.GetBody().(*LookupReply_Text)`,
-		"output: number variant resolver": `src.GetBody().(*LookupReply_Number)`,
-		"input: name wrapper":             `req.Key = &LookupRequest_Name{Name: v.(string)}`,
-		"input: id wrapper":               `req.Key = &LookupRequest_Id{Id: int32(v.(int))}`,
+
+	// Output side: per-variant Resolve must emit type-asserts so the
+	// right oneof member shows up; graphql-go's reflection can't walk
+	// the wrapper interface on its own.
+	mustContain := map[string]string{
+		"name variant resolver":   `src.GetKey().(*LookupRequest_Name)`,
+		"id variant resolver":     `src.GetKey().(*LookupRequest_Id)`,
+		"text variant resolver":   `src.GetBody().(*LookupReply_Text)`,
+		"number variant resolver": `src.GetBody().(*LookupReply_Number)`,
 	}
-	for label, want := range expectations {
+	for label, want := range mustContain {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %s — expected substring %q in generated source", label, want)
+		}
+	}
+
+	// Input side: the request is unmarshaled via runtime.MarshalRequest,
+	// which delegates to protojson for proto.Message values. The
+	// generator must NOT emit hand-rolled wrapper construction — that
+	// would diverge from the canonical proto3 JSON behaviour for bytes,
+	// enums, and nested messages, and would silently last-write-wins on
+	// multiple variants instead of erroring.
+	mustNotContain := map[string]string{
+		"hand-rolled name wrapper": `&LookupRequest_Name{`,
+		"hand-rolled id wrapper":   `&LookupRequest_Id{`,
+	}
+	for label, banned := range mustNotContain {
+		if strings.Contains(got, banned) {
+			t.Errorf("%s present — generator should defer oneof input to protojson, not emit %q",
+				label, banned)
 		}
 	}
 }
