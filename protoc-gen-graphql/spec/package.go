@@ -23,6 +23,12 @@ type Package struct {
 	Path                    string
 	GeneratedFilenamePrefix string
 	FileName                string
+
+	// Aliases maps an imported package's Path to the Go import alias
+	// used for it in the generated file. Only populated on the root
+	// (file being generated), and only contains entries for packages
+	// whose Name collided with another import.
+	Aliases map[string]string
 }
 
 func NewPackage(g PackageGetter) *Package {

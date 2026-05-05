@@ -110,9 +110,8 @@ func (f *Field) IsRepeated() bool {
 	return f.Label() == descriptorpb.FieldDescriptorProto_LABEL_REPEATED
 }
 
-func (f *Field) FieldType(rootPackage string) string {
-	pkg := NewGoPackageFromString(rootPackage)
-	fieldType := f.GraphqlGoType(pkg.Name, false)
+func (f *Field) FieldType(root *Package) string {
+	fieldType := f.GraphqlGoType(root, false)
 	if f.IsRequired() {
 		fieldType = "graphql.NewNonNull(" + fieldType + ")"
 	}
@@ -125,9 +124,8 @@ func (f *Field) FieldType(rootPackage string) string {
 	return fieldType
 }
 
-func (f *Field) FieldTypeInput(rootPackage string) string {
-	pkg := NewGoPackageFromString(rootPackage)
-	fieldType := f.GraphqlGoType(pkg.Name, true)
+func (f *Field) FieldTypeInput(root *Package) string {
+	fieldType := f.GraphqlGoType(root, true)
 	if f.IsRequired() {
 		fieldType = "graphql.NewNonNull(" + fieldType + ")"
 	}
@@ -224,7 +222,7 @@ func (f *Field) GraphqlType() string {
 }
 
 // GraphqlGoType returns appropriate graphql-go type
-func (f *Field) GraphqlGoType(rootPackage string, isInput bool) string {
+func (f *Field) GraphqlGoType(root *Package, isInput bool) string {
 	switch f.Type() {
 	case descriptorpb.FieldDescriptorProto_TYPE_BOOL:
 		return "graphql.Boolean"
@@ -260,13 +258,8 @@ func (f *Field) GraphqlGoType(rootPackage string, isInput bool) string {
 				log.Fatalln("[PROTOC-GEN-GRAPHQL] Error:", err)
 			}
 			pkgPrefix = "gql_ptypes_" + ptypeName + "."
-		} else if rootPackage != "." {
-			// Case message is nested, also includes map_entry
-			if pkg.Name != rootPackage {
-				if !IsGooglePackage(m) {
-					pkgPrefix = pkg.Name + "."
-				}
-			}
+		} else if isCrossPackage(pkg, root) {
+			pkgPrefix = importAlias(pkg, root) + "."
 		}
 		if isInput {
 			return pkgPrefix + PrefixInput(strings.ReplaceAll(tn, ".", "_"))
@@ -276,16 +269,37 @@ func (f *Field) GraphqlGoType(rootPackage string, isInput bool) string {
 		e := f.DependType.(*Enum) // nolint: errcheck
 		var pkgPrefix string
 		pkg := NewPackage(e)
-		if pkg.Name != rootPackage {
-			if !IsGooglePackage(e) {
-				pkgPrefix = pkg.Name + "."
-			}
+		if !IsGooglePackage(e) && isCrossPackage(pkg, root) {
+			pkgPrefix = importAlias(pkg, root) + "."
 		}
 		tn := strings.TrimPrefix(f.TypeName(), e.Package()+".")
 		return pkgPrefix + PrefixEnum(strings.ReplaceAll(tn, ".", "_"))
 	default:
 		return "graphql.SkipDirective"
 	}
+}
+
+// isCrossPackage reports whether the depended type's Go package differs
+// from the root (file being generated). Comparing by import path is
+// required: two protos can share the same trailing Go package name
+// (e.g. both ending `;v1`) while being distinct imports.
+func isCrossPackage(dep, root *Package) bool {
+	if root == nil {
+		return false
+	}
+	return dep.Path != root.Path
+}
+
+// importAlias returns the qualifier to use for cross-package symbols.
+// Falls back to the dep's own Name unless the generator assigned a
+// disambiguated alias because two imports collided on Name.
+func importAlias(dep, root *Package) string {
+	if root != nil {
+		if alias, ok := root.Aliases[dep.Path]; ok {
+			return alias
+		}
+	}
+	return dep.Name
 }
 
 func (f *Field) IsResolve() bool {

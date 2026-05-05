@@ -108,7 +108,7 @@ func (q *Query) PluckResponse() []*Field {
 func (q *Query) QueryType() string {
 	if q.IsPluckResponse() {
 		field := q.PluckResponse()[0]
-		return field.FieldType(q.GoPackage())
+		return field.FieldType(NewGoPackageFromString(q.GoPackage()))
 	}
 
 	var pkgPrefix string

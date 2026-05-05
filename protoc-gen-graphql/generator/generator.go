@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strings"
 
 	"go/format"
 	"text/template"
@@ -102,6 +103,73 @@ func (g *Generator) Generate(tmpl string, fs []string) ([]*pluginpb.CodeGenerato
 
 func isDependedGoogleEmptyMessage(m *spec.Message, pkg string) bool {
 	return m.IsDepended(spec.DependTypeMessage, pkg) && spec.IsGooglePackage(m) && m.Name() == "Empty"
+}
+
+// disambiguatePackageNames rewrites the Name on packages that share
+// their Go package name with another import (e.g. two protos both
+// ending with `;v1`) so the generated import block compiles. Returns a
+// Path -> alias map covering only the renamed entries; field rendering
+// consults it via importAlias().
+func disambiguatePackageNames(pkgs []*spec.Package) map[string]string {
+	if len(pkgs) < 2 {
+		return nil
+	}
+	count := map[string]int{}
+	for _, p := range pkgs {
+		count[p.Name]++
+	}
+	taken := map[string]struct{}{}
+	for _, p := range pkgs {
+		if count[p.Name] == 1 {
+			taken[p.Name] = struct{}{}
+		}
+	}
+	aliases := map[string]string{}
+	for _, p := range pkgs {
+		if count[p.Name] == 1 {
+			continue
+		}
+		alias := pickAlias(p, taken)
+		taken[alias] = struct{}{}
+		aliases[p.Path] = alias
+		p.Name = alias
+	}
+	return aliases
+}
+
+func pickAlias(p *spec.Package, taken map[string]struct{}) string {
+	segs := strings.Split(strings.Trim(p.Path, "/"), "/")
+	for n := 2; n <= len(segs); n++ {
+		candidate := sanitizeIdent(strings.Join(segs[len(segs)-n:], "_"))
+		if _, used := taken[candidate]; !used {
+			return candidate
+		}
+	}
+	base := sanitizeIdent(strings.Join(segs, "_"))
+	for i := 2; ; i++ {
+		c := fmt.Sprintf("%s_%d", base, i)
+		if _, used := taken[c]; !used {
+			return c
+		}
+	}
+}
+
+func sanitizeIdent(s string) string {
+	var b strings.Builder
+	for i, r := range s {
+		switch {
+		case (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || r == '_':
+			b.WriteRune(r)
+		case r >= '0' && r <= '9':
+			if i == 0 {
+				b.WriteRune('_')
+			}
+			b.WriteRune(r)
+		default:
+			b.WriteRune('_')
+		}
+	}
+	return b.String()
 }
 
 // nolint: gocognit, funlen, gocyclo
@@ -245,6 +313,7 @@ func (g *Generator) generateFile(file *spec.File, tmpl string, services []*spec.
 	})
 
 	root := spec.NewPackage(file)
+	root.Aliases = disambiguatePackageNames(uniquePackages)
 	t := &Template{
 		RootPackage: root,
 		Packages:    uniquePackages,
