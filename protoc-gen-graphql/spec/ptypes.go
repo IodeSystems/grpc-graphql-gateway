@@ -6,7 +6,7 @@ import (
 
 	"path/filepath"
 
-	plugin "github.com/golang/protobuf/protoc-gen-go/plugin"
+	pluginpb "google.golang.org/protobuf/types/pluginpb"
 )
 
 // Before protoc v3.14.0, go_package option name does not have "pb" suffix.
@@ -24,7 +24,7 @@ var supportedPtypesLaterV3_14_0 = []string{
 	"emptypb",
 }
 
-func getSupportedPtypeNames(cv *plugin.Version) []string {
+func getSupportedPtypeNames(cv *pluginpb.Version) []string {
 	if cv.GetMajor() >= 3 && cv.GetMinor() >= 14 {
 		return supportedPtypesLaterV3_14_0
 	}

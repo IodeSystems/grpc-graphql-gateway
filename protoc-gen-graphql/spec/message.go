@@ -5,12 +5,12 @@ import (
 
 	"path/filepath"
 
-	descriptor "github.com/golang/protobuf/protoc-gen-go/descriptor"
+	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 )
 
 // Message spec wraps DescriptorProto
 type Message struct {
-	descriptor *descriptor.DescriptorProto
+	descriptor *descriptorpb.DescriptorProto
 	*File
 
 	prefix []string
@@ -22,7 +22,7 @@ type Message struct {
 }
 
 func NewMessage(
-	d *descriptor.DescriptorProto,
+	d *descriptorpb.DescriptorProto,
 	f *File,
 	prefix []string,
 	isCamel bool,

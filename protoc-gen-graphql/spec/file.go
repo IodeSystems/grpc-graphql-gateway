@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"strings"
 
-	descriptor "github.com/golang/protobuf/protoc-gen-go/descriptor"
-	plugin "github.com/golang/protobuf/protoc-gen-go/plugin"
+	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
+	pluginpb "google.golang.org/protobuf/types/pluginpb"
 )
 
 // File spec wraps FileDescriptorProto
 // and this spec will be passed in all other specs in order to get
 // filename, package name, etc...
 type File struct {
-	descriptor *descriptor.FileDescriptorProto
+	descriptor *descriptorpb.FileDescriptorProto
 	comments   Comments
 
 	messages []*Message
@@ -22,12 +22,12 @@ type File struct {
 
 	isCamel bool
 
-	CompilerVersion *plugin.Version
+	CompilerVersion *pluginpb.Version
 }
 
 func NewFile(
-	d *descriptor.FileDescriptorProto,
-	cv *plugin.Version,
+	d *descriptorpb.FileDescriptorProto,
+	cv *pluginpb.Version,
 	isCamel bool,
 ) *File {
 
@@ -65,7 +65,7 @@ func (f *File) Enums() []*Enum {
 	return f.enums
 }
 
-func (f *File) messagesRecursive(d *descriptor.DescriptorProto, prefix []string, paths ...int) []*Message {
+func (f *File) messagesRecursive(d *descriptorpb.DescriptorProto, prefix []string, paths ...int) []*Message {
 	m := NewMessage(d, f, prefix, f.isCamel, paths...)
 
 	// If message is map_entry, assign all fields as "required"

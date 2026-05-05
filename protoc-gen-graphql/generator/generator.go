@@ -11,12 +11,11 @@ import (
 	"go/format"
 	"text/template"
 
-	// nolint: staticcheck
-	"github.com/golang/protobuf/proto"
-	descriptor "github.com/golang/protobuf/protoc-gen-go/descriptor"
-	plugin "github.com/golang/protobuf/protoc-gen-go/plugin"
 	"github.com/ysugimoto/grpc-graphql-gateway/graphql"
 	"github.com/ysugimoto/grpc-graphql-gateway/protoc-gen-graphql/spec"
+	"google.golang.org/protobuf/proto"
+	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
+	pluginpb "google.golang.org/protobuf/types/pluginpb"
 )
 
 type Template struct {
@@ -67,13 +66,13 @@ func New(files []*spec.File, args *spec.Params) *Generator {
 	}
 }
 
-func (g *Generator) Generate(tmpl string, fs []string) ([]*plugin.CodeGeneratorResponse_File, error) {
+func (g *Generator) Generate(tmpl string, fs []string) ([]*pluginpb.CodeGeneratorResponse_File, error) {
 	services, err := g.analyzeServices()
 	if err != nil {
 		return nil, err
 	}
 
-	var outFiles []*plugin.CodeGeneratorResponse_File
+	var outFiles []*pluginpb.CodeGeneratorResponse_File
 	for _, f := range g.files {
 		for _, v := range fs {
 			if f.Filename() != v {
@@ -107,7 +106,7 @@ func isDependedGoogleEmptyMessage(m *spec.Message, pkg string) bool {
 
 // nolint: gocognit, funlen, gocyclo
 func (g *Generator) generateFile(file *spec.File, tmpl string, services []*spec.Service) (
-	*plugin.CodeGeneratorResponse_File,
+	*pluginpb.CodeGeneratorResponse_File,
 	error,
 ) {
 
@@ -271,13 +270,13 @@ func (g *Generator) generateFile(file *spec.File, tmpl string, services []*spec.
 
 	// If paths=source_relative option is provided, put generated file relatively
 	if g.args.IsSourceRelative() {
-		return &plugin.CodeGeneratorResponse_File{
+		return &pluginpb.CodeGeneratorResponse_File{
 			Name:    proto.String(fmt.Sprintf("%s.graphql.go", root.GeneratedFilenamePrefix)),
 			Content: proto.String(string(out)),
 		}, nil
 	}
 
-	return &plugin.CodeGeneratorResponse_File{
+	return &pluginpb.CodeGeneratorResponse_File{
 		Name:    proto.String(fmt.Sprintf("%s/%s.graphql.go", root.Path, root.FileName)),
 		Content: proto.String(string(out)),
 	}, nil
@@ -439,7 +438,7 @@ func (g *Generator) analyzeFields(
 
 	for _, f := range fields {
 		switch f.Type() {
-		case descriptor.FieldDescriptorProto_TYPE_MESSAGE:
+		case descriptorpb.FieldDescriptorProto_TYPE_MESSAGE:
 			m := g.getMessage(f.TypeName())
 			if m == nil {
 				return errors.New("failed to resolve field message type: " + f.TypeName())
@@ -468,7 +467,7 @@ func (g *Generator) analyzeFields(
 					return err
 				}
 			}
-		case descriptor.FieldDescriptorProto_TYPE_ENUM:
+		case descriptorpb.FieldDescriptorProto_TYPE_ENUM:
 			e := g.getEnum(f.TypeName())
 			if e == nil {
 				return errors.New("failed to resolve field enum name: " + f.TypeName())

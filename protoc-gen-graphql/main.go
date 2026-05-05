@@ -7,11 +7,10 @@ import (
 	"log"
 	"os"
 
-	// nolint: staticcheck
-	"github.com/golang/protobuf/proto"
 	"github.com/ysugimoto/grpc-graphql-gateway/protoc-gen-graphql/generator"
 	"github.com/ysugimoto/grpc-graphql-gateway/protoc-gen-graphql/spec"
-	plugin "google.golang.org/protobuf/types/pluginpb"
+	"google.golang.org/protobuf/proto"
+	pluginpb "google.golang.org/protobuf/types/pluginpb"
 )
 
 var version = "dev"
@@ -26,8 +25,8 @@ func main() {
 
 	var genError error
 
-	pluginSupportedFeatures := uint64(plugin.CodeGeneratorResponse_FEATURE_PROTO3_OPTIONAL)
-	resp := &plugin.CodeGeneratorResponse{
+	pluginSupportedFeatures := uint64(pluginpb.CodeGeneratorResponse_FEATURE_PROTO3_OPTIONAL)
+	resp := &pluginpb.CodeGeneratorResponse{
 		SupportedFeatures: &pluginSupportedFeatures,
 	}
 	defer func() {
@@ -50,7 +49,7 @@ func main() {
 		return
 	}
 
-	var req plugin.CodeGeneratorRequest
+	var req pluginpb.CodeGeneratorRequest
 	if err := proto.Unmarshal(buf.Bytes(), &req); err != nil {
 		genError = err
 		return

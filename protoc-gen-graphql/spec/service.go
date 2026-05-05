@@ -1,15 +1,14 @@
 package spec
 
 import (
-	// nolint: staticcheck
-	"github.com/golang/protobuf/proto"
-	descriptor "github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"github.com/ysugimoto/grpc-graphql-gateway/graphql"
+	"google.golang.org/protobuf/proto"
+	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 )
 
 // Service spec wraps ServiceDescriptorProto with GraphqlService option.
 type Service struct {
-	descriptor *descriptor.ServiceDescriptorProto
+	descriptor *descriptorpb.ServiceDescriptorProto
 	Option     *graphql.GraphqlService
 	*File
 	paths   []int
@@ -21,17 +20,15 @@ type Service struct {
 }
 
 func NewService(
-	d *descriptor.ServiceDescriptorProto,
+	d *descriptorpb.ServiceDescriptorProto,
 	f *File,
 	paths ...int,
 ) *Service {
 
 	var o *graphql.GraphqlService
-	if opts := d.GetOptions(); opts != nil {
-		if ext, err := proto.GetExtension(opts, graphql.E_Service); err == nil {
-			if service, ok := ext.(*graphql.GraphqlService); ok {
-				o = service
-			}
+	if opts := d.GetOptions(); opts != nil && proto.HasExtension(opts, graphql.E_Service) {
+		if service, ok := proto.GetExtension(opts, graphql.E_Service).(*graphql.GraphqlService); ok {
+			o = service
 		}
 	}
 

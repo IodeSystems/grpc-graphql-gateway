@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	descriptor "github.com/golang/protobuf/protoc-gen-go/descriptor"
+	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 )
 
 // CommentType indicates comment format.
@@ -19,7 +19,7 @@ type Comments map[string]string
 
 // makeComments makes comment map, key is paths (it depends on descriptor)
 // see: https://github.com/protocolbuffers/protobuf/blob/master/src/google/protobuf/descriptor.proto#L776-L798
-func makeComments(d *descriptor.FileDescriptorProto) Comments {
+func makeComments(d *descriptorpb.FileDescriptorProto) Comments {
 	m := make(map[string]string)
 
 	for _, l := range d.GetSourceCodeInfo().GetLocation() {

@@ -3,12 +3,12 @@ package spec
 import (
 	"strings"
 
-	descriptor "github.com/golang/protobuf/protoc-gen-go/descriptor"
+	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 )
 
 // Enum spec wraps EnumDescriptorProto with keeping file definition.
 type Enum struct {
-	descriptor *descriptor.EnumDescriptorProto
+	descriptor *descriptorpb.EnumDescriptorProto
 	*File
 
 	prefix []string
@@ -19,7 +19,7 @@ type Enum struct {
 }
 
 func NewEnum(
-	d *descriptor.EnumDescriptorProto,
+	d *descriptorpb.EnumDescriptorProto,
 	f *File,
 	prefix []string,
 	paths ...int,

@@ -4,16 +4,15 @@ import (
 	"log"
 	"strings"
 
-	// nolint: staticcheck
-	"github.com/golang/protobuf/proto"
-	descriptor "github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"github.com/iancoleman/strcase"
 	"github.com/ysugimoto/grpc-graphql-gateway/graphql"
+	"google.golang.org/protobuf/proto"
+	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 )
 
 // Field spec wraps FieldDescriptorProto with keeping file info
 type Field struct {
-	descriptor *descriptor.FieldDescriptorProto
+	descriptor *descriptorpb.FieldDescriptorProto
 	Option     *graphql.GraphqlField
 	*File
 
@@ -26,18 +25,16 @@ type Field struct {
 }
 
 func NewField(
-	d *descriptor.FieldDescriptorProto,
+	d *descriptorpb.FieldDescriptorProto,
 	f *File,
 	isCamel bool,
 	paths ...int,
 ) *Field {
 
 	var o *graphql.GraphqlField
-	if opts := d.GetOptions(); opts != nil {
-		if ext, err := proto.GetExtension(opts, graphql.E_Field); err == nil {
-			if field, ok := ext.(*graphql.GraphqlField); ok {
-				o = field
-			}
+	if opts := d.GetOptions(); opts != nil && proto.HasExtension(opts, graphql.E_Field) {
+		if field, ok := proto.GetExtension(opts, graphql.E_Field).(*graphql.GraphqlField); ok {
+			o = field
 		}
 	}
 
@@ -72,7 +69,7 @@ func (f *Field) FieldName() string {
 	return f.Name()
 }
 
-func (f *Field) Type() descriptor.FieldDescriptorProto_Type {
+func (f *Field) Type() descriptorpb.FieldDescriptorProto_Type {
 	return f.descriptor.GetType()
 }
 
@@ -80,7 +77,7 @@ func (f *Field) TypeName() string {
 	return strings.TrimPrefix(f.descriptor.GetTypeName(), ".")
 }
 
-func (f *Field) Label() descriptor.FieldDescriptorProto_Label {
+func (f *Field) Label() descriptorpb.FieldDescriptorProto_Label {
 	return f.descriptor.GetLabel()
 }
 
@@ -103,7 +100,7 @@ func (f *Field) IsOmit() bool {
 }
 
 func (f *Field) IsRepeated() bool {
-	return f.Label() == descriptor.FieldDescriptorProto_LABEL_REPEATED
+	return f.Label() == descriptorpb.FieldDescriptorProto_LABEL_REPEATED
 }
 
 func (f *Field) FieldType(rootPackage string) string {
@@ -149,7 +146,7 @@ func (f *Field) SchemaType() string {
 
 func (f *Field) SchemaInputType() string {
 	var prefix string
-	if f.Type() == descriptor.FieldDescriptorProto_TYPE_MESSAGE {
+	if f.Type() == descriptorpb.FieldDescriptorProto_TYPE_MESSAGE {
 		m := f.DependType.(*Message) // nolint: errcheck
 		if f.Package() == m.Package() || IsGooglePackage(f) {
 			prefix = "Input_"
@@ -171,18 +168,18 @@ func (f *Field) DefaultValue() string {
 		return ""
 	}
 	switch f.Type() {
-	case descriptor.FieldDescriptorProto_TYPE_BOOL,
-		descriptor.FieldDescriptorProto_TYPE_DOUBLE,
-		descriptor.FieldDescriptorProto_TYPE_FLOAT,
-		descriptor.FieldDescriptorProto_TYPE_INT32,
-		descriptor.FieldDescriptorProto_TYPE_INT64,
-		descriptor.FieldDescriptorProto_TYPE_SFIXED32,
-		descriptor.FieldDescriptorProto_TYPE_SFIXED64,
-		descriptor.FieldDescriptorProto_TYPE_UINT32,
-		descriptor.FieldDescriptorProto_TYPE_UINT64,
-		descriptor.FieldDescriptorProto_TYPE_ENUM:
+	case descriptorpb.FieldDescriptorProto_TYPE_BOOL,
+		descriptorpb.FieldDescriptorProto_TYPE_DOUBLE,
+		descriptorpb.FieldDescriptorProto_TYPE_FLOAT,
+		descriptorpb.FieldDescriptorProto_TYPE_INT32,
+		descriptorpb.FieldDescriptorProto_TYPE_INT64,
+		descriptorpb.FieldDescriptorProto_TYPE_SFIXED32,
+		descriptorpb.FieldDescriptorProto_TYPE_SFIXED64,
+		descriptorpb.FieldDescriptorProto_TYPE_UINT32,
+		descriptorpb.FieldDescriptorProto_TYPE_UINT64,
+		descriptorpb.FieldDescriptorProto_TYPE_ENUM:
 		return f.Option.GetDefault()
-	case descriptor.FieldDescriptorProto_TYPE_STRING:
+	case descriptorpb.FieldDescriptorProto_TYPE_STRING:
 		return `"` + f.Option.GetDefault() + `"`
 	default:
 		return ""
@@ -192,25 +189,25 @@ func (f *Field) DefaultValue() string {
 // GraphqlType returns appropriate GraphQL type
 func (f *Field) GraphqlType() string {
 	switch f.Type() {
-	case descriptor.FieldDescriptorProto_TYPE_BOOL:
+	case descriptorpb.FieldDescriptorProto_TYPE_BOOL:
 		return "Boolean"
-	case descriptor.FieldDescriptorProto_TYPE_DOUBLE,
-		descriptor.FieldDescriptorProto_TYPE_FLOAT:
+	case descriptorpb.FieldDescriptorProto_TYPE_DOUBLE,
+		descriptorpb.FieldDescriptorProto_TYPE_FLOAT:
 		return "Float"
-	case descriptor.FieldDescriptorProto_TYPE_INT32,
-		descriptor.FieldDescriptorProto_TYPE_INT64,
-		descriptor.FieldDescriptorProto_TYPE_SFIXED32,
-		descriptor.FieldDescriptorProto_TYPE_SFIXED64,
-		descriptor.FieldDescriptorProto_TYPE_UINT32,
-		descriptor.FieldDescriptorProto_TYPE_UINT64:
+	case descriptorpb.FieldDescriptorProto_TYPE_INT32,
+		descriptorpb.FieldDescriptorProto_TYPE_INT64,
+		descriptorpb.FieldDescriptorProto_TYPE_SFIXED32,
+		descriptorpb.FieldDescriptorProto_TYPE_SFIXED64,
+		descriptorpb.FieldDescriptorProto_TYPE_UINT32,
+		descriptorpb.FieldDescriptorProto_TYPE_UINT64:
 		return "Int"
-	case descriptor.FieldDescriptorProto_TYPE_STRING:
+	case descriptorpb.FieldDescriptorProto_TYPE_STRING:
 		return "String"
-	case descriptor.FieldDescriptorProto_TYPE_MESSAGE:
+	case descriptorpb.FieldDescriptorProto_TYPE_MESSAGE:
 		m := f.DependType.(*Message) // nolint: errcheck
 		tn := strings.TrimPrefix(f.TypeName(), m.Package()+".")
 		return strings.ReplaceAll(tn, ".", "_")
-	case descriptor.FieldDescriptorProto_TYPE_ENUM:
+	case descriptorpb.FieldDescriptorProto_TYPE_ENUM:
 		e := f.DependType.(*Enum) // nolint: errcheck
 		tn := strings.TrimPrefix(f.TypeName(), e.Package()+".")
 		return strings.ReplaceAll(tn, ".", "_")
@@ -222,26 +219,26 @@ func (f *Field) GraphqlType() string {
 // GraphqlGoType returns appropriate graphql-go type
 func (f *Field) GraphqlGoType(rootPackage string, isInput bool) string {
 	switch f.Type() {
-	case descriptor.FieldDescriptorProto_TYPE_BOOL:
+	case descriptorpb.FieldDescriptorProto_TYPE_BOOL:
 		return "graphql.Boolean"
-	case descriptor.FieldDescriptorProto_TYPE_DOUBLE,
-		descriptor.FieldDescriptorProto_TYPE_FLOAT:
+	case descriptorpb.FieldDescriptorProto_TYPE_DOUBLE,
+		descriptorpb.FieldDescriptorProto_TYPE_FLOAT:
 		return "graphql.Float"
-	case descriptor.FieldDescriptorProto_TYPE_INT32,
-		descriptor.FieldDescriptorProto_TYPE_INT64,
-		descriptor.FieldDescriptorProto_TYPE_SFIXED32,
-		descriptor.FieldDescriptorProto_TYPE_SFIXED64,
-		descriptor.FieldDescriptorProto_TYPE_FIXED32,
-		descriptor.FieldDescriptorProto_TYPE_FIXED64,
-		descriptor.FieldDescriptorProto_TYPE_SINT32,
-		descriptor.FieldDescriptorProto_TYPE_SINT64,
-		descriptor.FieldDescriptorProto_TYPE_UINT32,
-		descriptor.FieldDescriptorProto_TYPE_UINT64:
+	case descriptorpb.FieldDescriptorProto_TYPE_INT32,
+		descriptorpb.FieldDescriptorProto_TYPE_INT64,
+		descriptorpb.FieldDescriptorProto_TYPE_SFIXED32,
+		descriptorpb.FieldDescriptorProto_TYPE_SFIXED64,
+		descriptorpb.FieldDescriptorProto_TYPE_FIXED32,
+		descriptorpb.FieldDescriptorProto_TYPE_FIXED64,
+		descriptorpb.FieldDescriptorProto_TYPE_SINT32,
+		descriptorpb.FieldDescriptorProto_TYPE_SINT64,
+		descriptorpb.FieldDescriptorProto_TYPE_UINT32,
+		descriptorpb.FieldDescriptorProto_TYPE_UINT64:
 		return "graphql.Int"
-	case descriptor.FieldDescriptorProto_TYPE_STRING,
-		descriptor.FieldDescriptorProto_TYPE_BYTES:
+	case descriptorpb.FieldDescriptorProto_TYPE_STRING,
+		descriptorpb.FieldDescriptorProto_TYPE_BYTES:
 		return "graphql.String"
-	case descriptor.FieldDescriptorProto_TYPE_MESSAGE:
+	case descriptorpb.FieldDescriptorProto_TYPE_MESSAGE:
 		m := f.DependType.(*Message) // nolint: errcheck
 		tn := strings.TrimPrefix(f.TypeName(), m.Package()+".")
 		if f.IsCyclic {
@@ -268,7 +265,7 @@ func (f *Field) GraphqlGoType(rootPackage string, isInput bool) string {
 			return pkgPrefix + PrefixInput(strings.ReplaceAll(tn, ".", "_"))
 		}
 		return pkgPrefix + PrefixType(strings.ReplaceAll(tn, ".", "_"))
-	case descriptor.FieldDescriptorProto_TYPE_ENUM:
+	case descriptorpb.FieldDescriptorProto_TYPE_ENUM:
 		e := f.DependType.(*Enum) // nolint: errcheck
 		var pkgPrefix string
 		pkg := NewPackage(e)

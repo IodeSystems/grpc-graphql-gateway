@@ -3,15 +3,14 @@ package spec
 import (
 	"strings"
 
-	// nolint: staticcheck
-	"github.com/golang/protobuf/proto"
-	descriptor "github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"github.com/ysugimoto/grpc-graphql-gateway/graphql"
+	"google.golang.org/protobuf/proto"
+	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 )
 
 // Method spec wraps MethodDescriptorProto with GraphqlQuery and GraphqlMutation options.
 type Method struct {
-	descriptor *descriptor.MethodDescriptorProto
+	descriptor *descriptorpb.MethodDescriptorProto
 	Service    *Service
 	Schema     *graphql.GraphqlSchema
 	*File
@@ -20,17 +19,15 @@ type Method struct {
 }
 
 func NewMethod(
-	m *descriptor.MethodDescriptorProto,
+	m *descriptorpb.MethodDescriptorProto,
 	s *Service,
 	paths ...int,
 ) *Method {
 
 	var schema *graphql.GraphqlSchema
-	if opts := m.GetOptions(); opts != nil {
-		if ext, err := proto.GetExtension(opts, graphql.E_Schema); err == nil {
-			if v, ok := ext.(*graphql.GraphqlSchema); ok {
-				schema = v
-			}
+	if opts := m.GetOptions(); opts != nil && proto.HasExtension(opts, graphql.E_Schema) {
+		if v, ok := proto.GetExtension(opts, graphql.E_Schema).(*graphql.GraphqlSchema); ok {
+			schema = v
 		}
 	}
 
