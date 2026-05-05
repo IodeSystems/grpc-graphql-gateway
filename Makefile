@@ -1,4 +1,4 @@
-.PHONY: command clean
+.PHONY: command clean doctor
 
 GRAPHQL_CMD=protoc-gen-graphql
 VERSION=$(or ${tag}, dev)
@@ -24,6 +24,9 @@ plugin:
 		include/graphql/graphql.proto
 	mv graphql/github.com/ysugimoto/grpc-graphql-gateway/graphql/graphql.pb.go graphql/
 	rm -rf graphql/github.com
+
+doctor:
+	./scripts/check-tools.sh
 
 lint:
 	golangci-lint run
