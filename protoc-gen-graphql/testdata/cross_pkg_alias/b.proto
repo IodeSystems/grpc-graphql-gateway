@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package aliasb.v1;
+
+option go_package = "example.com/repo/alias/v1/b;v1";
+
+message BType {
+  string name = 1;
+}

@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package crosspkgb.v1;
+
+option go_package = "example.com/repo/gen/v1/b;v1";
+
+message Test {
+  string name = 1;
+}

@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package aliasc.v1;
+
+option go_package = "example.com/repo/alias/v1/c;v1";
+
+message CType {
+  string name = 1;
+}

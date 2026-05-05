@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package aliasa.v1;
+
+import "graphql.proto";
+import "cross_pkg_alias/b.proto";
+import "cross_pkg_alias/c.proto";
+
+option go_package = "example.com/repo/alias/v1/a;v1";
+
+// Two cross-package deps both with go_package ending `;v1` — the
+// generator must alias the imports so the file compiles.
+service A {
+  rpc Index(IndexRequest) returns (IndexResponse) {
+    option (graphql.schema) = {
+      type: QUERY
+      name: "index"
+    };
+  }
+}
+
+message IndexRequest {
+  string q = 1;
+}
+
+message IndexResponse {
+  repeated aliasb.v1.BType bs = 1;
+  repeated aliasc.v1.CType cs = 2;
+}
