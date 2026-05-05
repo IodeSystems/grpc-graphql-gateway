@@ -298,20 +298,21 @@ This plugin generates graphql execution code using [graphql-go/graphql](https://
 
 ### `oneof` mapping
 
-Protobuf `oneof` is supported but with caveats — GraphQL has no native
-"exactly one of" construct for scalar variants, so:
+Protobuf `oneof` is supported, but GraphQL has no native "exactly one
+of" construct for scalar variants, so:
 
 - Each variant becomes an independent nullable field on the GraphQL
-  type and input. Clients see all variants and must look for the
-  non-null one to know which was set.
-- The schema cannot enforce mutual exclusion. If a client supplies
-  more than one variant in an input, the **last variant in proto
-  declaration order wins**; earlier ones are dropped before the gRPC
-  call.
-- Variant types beyond scalars (nested messages, enums, bytes,
-  repeated) are not assembled on the input side — the wrapper stays
-  unset and the gRPC server sees the oneof as cleared. Output
-  resolvers always work for any variant type.
+  type and input. Clients see all variants and look for the non-null
+  one to know which was set.
+- The schema can't enforce mutual exclusion at the GraphQL layer.
+  Inputs are unmarshaled via canonical proto3 JSON (`protojson`),
+  which **rejects multiple variants** in the same oneof — so the
+  enforcement happens server-side and surfaces as an unmarshal error
+  rather than silently picking a winner.
+- Variant types follow proto3 JSON conventions: `bytes` variants
+  must be base64-encoded strings, enum variants accept their name
+  or number, nested-message variants accept the same nested input
+  shape used elsewhere.
 
 ### Other unsupported types
 
