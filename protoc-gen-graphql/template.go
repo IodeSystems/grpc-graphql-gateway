@@ -231,14 +231,15 @@ func new_graphql_resolver_{{ $service.Name }}(conn *grpc.ClientConn) *graphql__r
 }
 
 // CreateConnection() returns grpc connection which user specified or newly connected and closing function
-func (x *graphql__resolver_{{ $service.Name }}) CreateConnection(ctx context.Context) (*grpc.ClientConn, func(), error) {
+func (x *graphql__resolver_{{ $service.Name }}) CreateConnection(_ context.Context) (*grpc.ClientConn, func(), error) {
 	// If x.conn is not nil, user injected their own connection
 	if x.conn != nil {
 		return x.conn, func() {}, nil
 	}
 
-	// Otherwise, this handler opens connection with specified host
-	conn, err := grpc.DialContext(ctx, x.host, x.dialOptions...)
+	// Otherwise, this handler opens connection with specified host.
+	// NewClient returns immediately; the connection is established lazily on first RPC.
+	conn, err := grpc.NewClient(x.host, x.dialOptions...)
 	if err != nil {
 		return nil, nil, err
 	}
