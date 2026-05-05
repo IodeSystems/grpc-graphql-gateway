@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"fmt"
 	"log"
 	"strings"
 
@@ -22,6 +23,13 @@ type Field struct {
 	IsCyclic      bool
 	isCamel       bool
 	forceRequired bool
+
+	// oneof bindings; populated by the parent Message after fields are
+	// constructed. Empty when the field is not a member of a non-synthetic
+	// oneof (proto3 optional uses synthetic oneofs that we ignore).
+	oneofGoName       string // Go field name of the oneof on the message struct, e.g. "Body"
+	wrapperGoType     string // wrapper type, e.g. "LookupReply_Text"
+	wrapperFieldName  string // wrapper's inner field name, e.g. "Text"
 }
 
 func NewField(
@@ -287,6 +295,78 @@ func (f *Field) IsResolve() bool {
 	}
 
 	return f.Option.GetResolver() != ""
+}
+
+// IsOneof reports whether the field is a member of a user-declared
+// oneof (synthetic proto3-optional oneofs return false).
+func (f *Field) IsOneof() bool {
+	return f.oneofGoName != ""
+}
+
+// OneofGoName returns the Go field name of the parent oneof on the
+// message struct (e.g. "Body" for a oneof named "body").
+func (f *Field) OneofGoName() string {
+	return f.oneofGoName
+}
+
+// WrapperGoType returns the protoc-gen-go wrapper struct that holds
+// this field as its variant of the oneof, e.g. "LookupReply_Text".
+func (f *Field) WrapperGoType() string {
+	return f.wrapperGoType
+}
+
+// WrapperFieldGoName returns the wrapper struct's inner field name,
+// e.g. "Text" inside "LookupReply_Text".
+func (f *Field) WrapperFieldGoName() string {
+	return f.wrapperFieldName
+}
+
+// OneofVariantAssign returns Go source that, given the args-map
+// expression and the request variable, sets <reqExpr>.<OneofGoName>
+// to the wrapper for this variant when the argument was supplied.
+//
+// Unsupported variant types (message, bytes, repeated, enum) are
+// emitted as a comment so the surrounding code still compiles; those
+// variants will fall through and reach the gRPC server with the
+// oneof unset. This is the caveat noted in the README.
+func (f *Field) OneofVariantAssign(argsExpr, reqExpr string) string {
+	if !f.IsOneof() {
+		return ""
+	}
+	var inner string
+	switch f.Type() {
+	case descriptorpb.FieldDescriptorProto_TYPE_BOOL:
+		inner = "v.(bool)"
+	case descriptorpb.FieldDescriptorProto_TYPE_STRING:
+		inner = "v.(string)"
+	case descriptorpb.FieldDescriptorProto_TYPE_DOUBLE:
+		inner = "v.(float64)"
+	case descriptorpb.FieldDescriptorProto_TYPE_FLOAT:
+		inner = "float32(v.(float64))"
+	case descriptorpb.FieldDescriptorProto_TYPE_INT32,
+		descriptorpb.FieldDescriptorProto_TYPE_SFIXED32,
+		descriptorpb.FieldDescriptorProto_TYPE_SINT32:
+		inner = "int32(v.(int))"
+	case descriptorpb.FieldDescriptorProto_TYPE_INT64,
+		descriptorpb.FieldDescriptorProto_TYPE_SFIXED64,
+		descriptorpb.FieldDescriptorProto_TYPE_SINT64:
+		inner = "int64(v.(int))"
+	case descriptorpb.FieldDescriptorProto_TYPE_UINT32,
+		descriptorpb.FieldDescriptorProto_TYPE_FIXED32:
+		inner = "uint32(v.(int))"
+	case descriptorpb.FieldDescriptorProto_TYPE_UINT64,
+		descriptorpb.FieldDescriptorProto_TYPE_FIXED64:
+		inner = "uint64(v.(int))"
+	default:
+		return fmt.Sprintf("\t\t\t\t// oneof variant %q has unsupported type %s; skipped\n",
+			f.Name(), f.Type())
+	}
+	return fmt.Sprintf(
+		"\t\t\t\tif v, ok := %s[%q]; ok && v != nil {\n"+
+			"\t\t\t\t\t%s.%s = &%s{%s: %s}\n"+
+			"\t\t\t\t}\n",
+		argsExpr, f.FieldName(),
+		reqExpr, f.OneofGoName(), f.WrapperGoType(), f.WrapperFieldGoName(), inner)
 }
 
 func (f *Field) ResolveSubField(services []*Service) *Query {

@@ -5,8 +5,17 @@ import (
 
 	"path/filepath"
 
+	"github.com/iancoleman/strcase"
 	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 )
+
+// Oneof groups the variant fields of a single user-declared oneof on
+// a Message. Synthetic oneofs (proto3 optional) are excluded.
+type Oneof struct {
+	Name   string   // proto name, e.g. "body"
+	GoName string   // Go field name on the message, e.g. "Body"
+	Fields []*Field // variants in proto declaration order
+}
 
 // Message spec wraps DescriptorProto
 type Message struct {
@@ -46,7 +55,54 @@ func NewMessage(
 			m.fields = append(m.fields, ff)
 		}
 	}
+
+	// Bind oneof metadata onto each member field so the template can emit
+	// per-variant resolvers and request fixups. Skip synthetic oneofs that
+	// proto3's optional keyword generates internally.
+	decls := d.GetOneofDecl()
+	for _, ff := range m.fields {
+		if ff.descriptor.OneofIndex == nil || ff.descriptor.GetProto3Optional() {
+			continue
+		}
+		idx := int(ff.descriptor.GetOneofIndex())
+		if idx < 0 || idx >= len(decls) {
+			continue
+		}
+		ff.oneofGoName = strcase.ToCamel(decls[idx].GetName())
+		ff.wrapperFieldName = strcase.ToCamel(ff.Name())
+		ff.wrapperGoType = m.TypeName() + "_" + ff.wrapperFieldName
+	}
 	return m
+}
+
+// Oneofs returns the user-declared oneofs on this message in proto
+// declaration order. Synthetic oneofs are excluded.
+func (m *Message) Oneofs() []*Oneof {
+	decls := m.descriptor.GetOneofDecl()
+	if len(decls) == 0 {
+		return nil
+	}
+	result := make([]*Oneof, 0, len(decls))
+	for i, decl := range decls {
+		var members []*Field
+		for _, ff := range m.fields {
+			if !ff.IsOneof() {
+				continue
+			}
+			if int(ff.descriptor.GetOneofIndex()) == i {
+				members = append(members, ff)
+			}
+		}
+		if len(members) == 0 {
+			continue
+		}
+		result = append(result, &Oneof{
+			Name:   decl.GetName(),
+			GoName: strcase.ToCamel(decl.GetName()),
+			Fields: members,
+		})
+	}
+	return result
 }
 
 func (m *Message) Fields() []*Field {
