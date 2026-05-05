@@ -46,11 +46,11 @@ func parseRequest(r *http.Request) (*GraphqlRequest, error) {
 // MarshalRequest marshals graphql request arguments to gRPC request message
 func MarshalRequest(args, v interface{}, isCamel bool) error {
 	if args == nil {
-		return errors.New("Resolved params should be non-nil")
+		return errors.New("resolved params should be non-nil")
 	}
 	m, ok := args.(map[string]interface{}) // graphql.ResolveParams or nested object
 	if !ok {
-		return errors.New("Failed to type conversion of map[string]interface{}")
+		return errors.New("failed to type conversion of map[string]interface{}")
 	}
 	if isCamel {
 		m = toLowerCaseKeys(m)

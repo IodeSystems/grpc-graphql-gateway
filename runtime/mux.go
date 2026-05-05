@@ -78,7 +78,7 @@ func (s *ServeMux) validateHandler(h GraphqlHandler) error {
 
 	// Try to generate Schema and check error
 	if _, err := graphql.NewSchema(schemaConfig); err != nil {
-		return fmt.Errorf("Schema validation error: %s", err)
+		return fmt.Errorf("schema validation error: %w", err)
 	}
 	return nil
 }

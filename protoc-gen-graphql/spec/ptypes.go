@@ -41,7 +41,7 @@ func getImplementedPtypes(m *Message) (string, error) {
 		}
 	}
 	if !found {
-		return "", fmt.Errorf("google's ptype \"%s\" does not implement for now.", ptype)
+		return "", fmt.Errorf("google's ptype %q is not implemented", ptype)
 	}
 
 	return ptype, nil
