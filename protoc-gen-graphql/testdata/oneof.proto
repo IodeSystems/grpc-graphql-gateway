@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package oneoftest;
+
+import "graphql.proto";
+
+option go_package = "./;oneoftest";
+
+service OneofService {
+  option (graphql.service) = {
+    host: "localhost:50051"
+    insecure: true
+  };
+
+  rpc Lookup (LookupRequest) returns (LookupReply) {
+    option (graphql.schema) = {
+      type: QUERY
+      name: "lookup"
+    };
+  }
+}
+
+message LookupRequest {
+  oneof key {
+    string name = 1;
+    int32  id   = 2;
+  }
+}
+
+message LookupReply {
+  string label = 1;
+  oneof body {
+    string text   = 2;
+    int32  number = 3;
+  }
+}
